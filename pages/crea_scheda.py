@@ -1,19 +1,19 @@
 import flet as ft
 import uuid
-from datetime import datetime
-from services.local_db import save_workout_local
 import os
 import json
-
+from datetime import datetime
+from services.local_db import save_workout_local
 
 def create_routine_view(page: ft.Page):
     current_user = page.session.store.get("user_email") or "atleta.gymlog@test.com"
     
+    # --- 1. CONTROLLO MODIFICA ---
     scheda_da_modificare = page.session.store.get("scheda_edit")
     is_editing = scheda_da_modificare is not None
     exercises_buffer = scheda_da_modificare.get("esercizi", []) if is_editing else []
     
-    # Carica la lista base
+    # caricamento catalogo esercizi (LOCALE)
     lista_esercizi_db = ["Panca Piana", "Squat", "Stacco da terra", "Trazioni", "Lento Avanti", "Bicipiti Bilanciere"]
     
     # Legge il database locale e aggiunge i tuoi esercizi personalizzati
@@ -28,97 +28,197 @@ def create_routine_view(page: ft.Page):
 
     options_list = [ft.dropdown.Option(ex) for ex in lista_esercizi_db]
 
-    txt_nome = ft.TextField(
-        label="Nome Scheda", 
-        value=scheda_da_modificare.get("nome_scheda", "") if is_editing else "",
-        bgcolor="#1e293b", color="white", border_color="#334155"
-    )
-    txt_split = ft.TextField(
-        label="Split Focus (es. A - Petto/Bicipiti)", 
-        value=scheda_da_modificare.get("split_type", "") if is_editing else "",
-        bgcolor="#1e293b", color="white", border_color="#334155"
-    )
-    
-    exercises_column = ft.Column(spacing=10)
-    lbl_esercizi_count = ft.Text(f"Esercizi inseriti: {len(exercises_buffer)}", color="#94a3b8")
-
-    def render_buffer():
-        exercises_column.controls.clear()
-        for idx, ex in enumerate(exercises_buffer):
-            exercises_column.controls.controls.append(
-                ft.ListTile(
-                    title=ft.Text(ex.get("exercise_name", "Esercizio"), color="white"),
-                    subtitle=ft.Text(f"{ex.get('serie')}x{ex.get('ripetizioni')} - Note: {ex.get('note_ai', '')}", color="grey"),
-                    trailing=ft.IconButton(ft.Icons.DELETE, icon_color="red", on_click=lambda e, i=idx: remove_exercise(i))
-                )
+    # --- UI COMPONENTS (IL TUO LAYOUT ORIGINALE) ---
+    def styled_textfield(label, hint_text, initial_value=""):
+        return ft.Column([
+            ft.Text(label.upper(), size=12, weight=ft.FontWeight.BOLD, color="#94a3b8"),
+            ft.TextField(
+                value=initial_value, 
+                hint_text=hint_text,
+                border_radius=12,
+                bgcolor="#1e293b",
+                border_color="#334155",
+                text_style=ft.TextStyle(color="white"),
+                hint_style=ft.TextStyle(color="#64748b"),
+                content_padding=15,
+                cursor_color=ft.Colors.BLUE_400
             )
-        lbl_esercizi_count.value = f"Esercizi inseriti: {len(exercises_buffer)}"
+        ], spacing=5)
+
+    # PRE-COMPILAZIONE CAMPI
+    init_nome = scheda_da_modificare.get("nome_scheda", "") if is_editing else ""
+    init_split = scheda_da_modificare.get("split_type", "") if is_editing else ""
+
+    txt_nome = styled_textfield("Nome Scheda", "Es. Giorno 1", init_nome)
+    txt_split = styled_textfield("Tipo Split", "Es. Push, Pull, A, B...", init_split)
+    
+    lbl_esercizi_count = ft.Text(f"ESERCIZI ({len(exercises_buffer)})", size=12, weight="bold", color="#94a3b8")
+    exercises_column = ft.Column(spacing=10)
+
+    # DIALOG E LOGICA AGGIUNTA ESERCIZIO 
+    dd_exist = ft.Dropdown(
+        label="Seleziona Esistente",
+        options=options_list,
+        bgcolor="#1e293b", border_color="#334155", color="white", width=250
+    )
+    txt_new_custom = ft.TextField(label="Oppure nome nuovo...", bgcolor="#1e293b", border_color="#334155", color="white", visible=False, width=250)
+    sw_custom = ft.Switch(label="Nuovo Esercizio Personalizzato", value=False, active_color=ft.Colors.BLUE_400)
+    txt_sets = ft.TextField(label="Serie", width=100, bgcolor="#1e293b", border_color="#334155", color="white", value="3")
+    txt_reps = ft.TextField(label="Reps", width=100, bgcolor="#1e293b", border_color="#334155", color="white", value="10")
+
+    def toggle_custom_exercise(e):
+        is_custom = sw_custom.value
+        dd_exist.visible = not is_custom
+        txt_new_custom.visible = is_custom
         page.update()
 
-    def remove_exercise(index):
-        exercises_buffer.pop(index)
-        render_buffer()
+    # FUNZIONE COMPATIBILE PER I BANNER DI NOTIFICA INFALLIBILI
+    def show_snack(msg, color):
+        snack = ft.SnackBar(ft.Text(msg, color="white", weight="bold"), bgcolor=color)
+        page.overlay.append(snack)
+        snack.open = True
+        page.update()
 
-    # LOGICA DI SALVATAGGIO LOCALE + GENERAZIONE IMPRONTA DIGITALE
-    def salva_scheda_logico(e):
-        if not txt_nome.value:
-            txt_nome.error_text = "Inserisci il nome della scheda"
-            page.update()
+    def confirm_add_exercise(e):
+        ex_name = txt_new_custom.value if sw_custom.value else dd_exist.value
+        if not ex_name:
+            show_snack("Devi inserire o selezionare un nome!", "red")
             return
 
+        if sw_custom.value:
+            new_custom_ex = {
+                "id": str(uuid.uuid4()),
+                "exercise_name": ex_name,
+                "user_email": current_user
+            }
+            os.makedirs("local_data", exist_ok=True)
+            saved_customs = []
+            if os.path.exists("local_data/custom_esercizi.json"):
+                try:
+                    with open("local_data/custom_esercizi.json", "r") as f:
+                        saved_customs = json.load(f)
+                except: pass
+            saved_customs.append(new_custom_ex)
+            with open("local_data/custom_esercizi.json", "w") as f:
+                json.dump(saved_customs, f)
+            
+            dd_exist.options.append(ft.dropdown.Option(ex_name))
+
+        new_ex = {
+            "id": str(uuid.uuid4())[:8],
+            "user_email": current_user,
+            "type": "esercizio_catalogo",
+            "exercise_name": ex_name,
+            "serie": txt_sets.value,
+            "ripetizioni": txt_reps.value,
+            "is_custom": sw_custom.value,
+            "note_ai": "Aggiunto manualmente"
+        }
+        exercises_buffer.append(new_ex)
+        update_exercises_list()
+        
+        dialog_add.open = False
+        txt_new_custom.value = ""
+        dd_exist.value = None
+        sw_custom.value = False
+        toggle_custom_exercise(None)
+
+    def close_dialog(e=None):
+        dialog_add.open = False
+        sw_custom.value = False
+        toggle_custom_exercise(None)
+        page.update()
+
+    dialog_add = ft.AlertDialog(
+        title=ft.Text("Aggiungi Esercizio"), bgcolor="#0f172a",
+        content=ft.Column([sw_custom, dd_exist, txt_new_custom, ft.Row([txt_sets, txt_reps])], height=200, tight=True),
+        actions=[
+            ft.TextButton("Annulla", on_click=close_dialog), 
+            ft.ElevatedButton("Aggiungi", on_click=confirm_add_exercise, bgcolor=ft.Colors.BLUE_600, color="white")
+        ],
+    )
+    sw_custom.on_change = toggle_custom_exercise
+
+    def open_add_dialog(e):
+        if dialog_add not in page.overlay:
+            page.overlay.append(dialog_add)
+        dialog_add.open = True
+        page.update()
+
+    def remove_exercise(ex_id):
+        exercises_buffer[:] = [x for x in exercises_buffer if x.get('id') != ex_id]
+        update_exercises_list()
+
+    def update_exercises_list():
+        exercises_column.controls.clear()
+        for ex in exercises_buffer:
+            if 'id' not in ex: ex['id'] = str(uuid.uuid4())[:8] 
+            nome = ex.get('exercise_name') or ex.get('name') or ex.get('nome') or '???'
+            card = ft.Container(
+                content=ft.Row([
+                    ft.Column([
+                        ft.Text(nome, weight="bold", color="white", size=16),
+                        ft.Text(f"{ex.get('serie','?')} x {ex.get('ripetizioni','?')}", color="#94a3b8", size=14)
+                    ], expand=True),
+                    ft.IconButton(ft.Icons.DELETE_OUTLINE, icon_color="red", on_click=lambda e, x=ex.get('id'): remove_exercise(x))
+                ]),
+                bgcolor="#1e293b", border_radius=10, padding=15, border=ft.Border.all(1, "#334155")
+            )
+            exercises_column.controls.append(card)
+        lbl_esercizi_count.value = f"ESERCIZI ({len(exercises_buffer)})"
+        page.update()
+
+    # --- SALVATAGGIO O UPDATE ---
+    def salva_scheda_logico(e):
+        title = txt_nome.controls[1].value
+        split = txt_split.controls[1].value
+        
+        # CONTROLLO: Se non c'è il titolo, mostra errore rosso in basso!
+        if not title:
+            show_snack("Inserisci il nome della scheda prima di salvare!", "red")
+            return
+            
         workout_data = {
             "id": scheda_da_modificare.get("id", str(uuid.uuid4())) if is_editing else str(uuid.uuid4()),
-            "nome_scheda": txt_nome.value,
-            "split_type": txt_split.value or "General",
-            "created_at": scheda_da_modificare.get("created_at", datetime.now().strftime("%d/%m/%Y")) if is_editing else datetime.now().strftime("%d/%m/%Y"),
             "user_email": current_user,
+            "type": "scheda",
+            "nome_scheda": title,
+            "split_type": split,
+            "created_at": scheda_da_modificare.get('created_at', datetime.now().strftime("%d/%m/%Y")) if is_editing else datetime.now().strftime("%d/%m/%Y"),
             "esercizi": exercises_buffer
         }
-
-        # Chiamata al database locale crittografico
-        hash_generato = save_workout_local(current_user, workout_data)
-        print(f"🔒 [BLOCKCHAIN READY] Hash SHA-256 generato per la notarizzazione: {hash_generato}")
         
-        page.session.store.remove("scheda_edit")
+        hash_generato = save_workout_local(current_user, workout_data)
+        print(f"🔒 Hash salvataggio locale: {hash_generato}")
+        
+        page.session.store.set("scheda_edit", None)
+        show_snack("Scheda Salvata con Successo!", "green")
         page.go("/schede")
 
-    # Modale minimale per aggiunta esercizio rapido
-    dd_exist = ft.Dropdown(label="Esercizio", options=options_list, bgcolor="#1e293b", color="white")
-    txt_serie = ft.TextField(label="Serie", value="4", bgcolor="#1e293b", color="white")
-    txt_reps = ft.TextField(label="Ripetizioni", value="10", bgcolor="#1e293b", color="white")
+    def go_back(e):
+        page.session.store.set("scheda_edit", None)
+        page.go("/schede")
 
-    def add_ex_to_buffer(e):
-        if not dd_exist.value: return
-        exercises_buffer.append({
-            "exercise_name": dd_exist.value,
-            "serie": txt_serie.value,
-            "ripetizioni": txt_reps.value,
-            "note_ai": "Salvato in Locale"
-        })
-        render_buffer()
-        page.close(dlg_add_exercise)
+    update_exercises_list()
 
-    dlg_add_exercise = ft.AlertDialog(
-        title=ft.Text("Aggiungi Esercizio"),
-        content=ft.Column([dd_exist, txt_serie, txt_reps], height=180, tight=True),
-        actions=[
-            ft.TextButton("Annulla", on_click=lambda e: page.close(dlg_add_exercise)),
-            ft.ElevatedButton("Aggiungi", on_click=add_ex_to_buffer)
-        ]
+    btn_add_big = ft.Container(
+        content=ft.Row([ft.Icon(ft.Icons.ADD, color=ft.Colors.BLUE_400), ft.Text("Aggiungi Esercizio", color=ft.Colors.BLUE_400, weight="bold")], alignment=ft.MainAxisAlignment.CENTER),
+        padding=15, border=ft.Border.all(1, ft.Colors.BLUE_900), border_radius=12,
+        on_click=open_add_dialog,
+        ink=True
     )
 
-    btn_add_big = ft.ElevatedButton("+ Aggiungi Esercizio", on_click=lambda e: page.open(dlg_add_exercise), bgcolor="#1e293b", color="white")
-
-    render_buffer()
+    page_title_text = "Modifica Scheda" if is_editing else "Nuova Scheda"
 
     return ft.View(
         route="/crea_scheda",
-        bgcolor="#0f172a",
-        padding=20,
+        bgcolor="#0f172a", 
+        padding=ft.Padding(top=60, left=20, right=20, bottom=20),
         controls=[
             ft.Row([
-                ft.IconButton(ft.Icons.ARROW_BACK_IOS, icon_color="white", on_click=lambda e: [page.session.store.remove("scheda_edit"), page.go("/schede")]),
-                ft.Text("Nuova Scheda", size=24, weight="bold", color="white"),
+                ft.IconButton(ft.Icons.ARROW_BACK_IOS, icon_color="white", on_click=go_back, icon_size=18),
+                ft.Text(page_title_text, size=20, weight="bold", color="white"),
+                ft.Container(expand=True),
                 ft.ElevatedButton("Salva", bgcolor=ft.Colors.BLUE_500, color="white", on_click=salva_scheda_logico)
             ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
             ft.Divider(color="transparent", height=10),
@@ -132,5 +232,20 @@ def create_routine_view(page: ft.Page):
                 ],
                 scroll=ft.ScrollMode.AUTO, expand=True
             )
-        ]
+        ],
+        navigation_bar=ft.NavigationBar(
+            destinations=[
+                ft.NavigationBarDestination(icon=ft.Icons.FOLDER_COPY, label="Schede"),
+                ft.NavigationBarDestination(icon=ft.Icons.HOME, label="Home"),
+                ft.NavigationBarDestination(icon=ft.Icons.SPORTS_GYMNASTICS, label="Allenamento"),
+            ],
+            bgcolor="#1e293b", indicator_color=ft.Colors.BLUE_600, 
+            selected_index=0, 
+            on_change=lambda e: [
+                page.session.store.set("scheda_edit", None), 
+                page.go("/schede") if e.control.selected_index==0 else 
+                page.go("/") if e.control.selected_index==1 else 
+                page.go("/workout")
+            ]
+        )
     )

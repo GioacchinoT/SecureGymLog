@@ -11,7 +11,6 @@ def gestione_esercizi_view(page: ft.Page):
     exercises_column = ft.Column(spacing=10)
     loading = ft.ProgressRing(color=ft.Colors.CYAN_400, visible=True)
 
-    # Definiamo dove salvare gli esercizi in locale
     DB_FILE = "local_data/custom_esercizi.json"
 
     def get_saved_esercizi():
@@ -65,23 +64,34 @@ def gestione_esercizi_view(page: ft.Page):
                         ) if is_mine else ft.Icon(ft.Icons.LOCK, color="#334155", size=16, tooltip="Sistema / Non modificabile")
                         
                     ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
-                    bgcolor="#1e293b", padding=15, border_radius=10, border=ft.border.all(1, "#334155")
+                    bgcolor="#1e293b", padding=15, border_radius=10, 
+                    border=ft.Border(top=ft.BorderSide(1, "#334155"), bottom=ft.BorderSide(1, "#334155"), left=ft.BorderSide(1, "#334155"), right=ft.BorderSide(1, "#334155"))
                 )
                 exercises_column.controls.append(card)
         page.update()
 
+    # --- FUNZIONE OVERLAY INFALLIBILE PER LE NOTIFICHE ---
+    def show_snack(msg, color):
+        snack = ft.SnackBar(ft.Text(msg), bgcolor=color)
+        page.overlay.append(snack)
+        snack.open = True
+        page.update()
+
     def delete_click(ex_id):
         if not ex_id: return
-        
         saved = get_saved_esercizi()
         saved = [ex for ex in saved if ex.get("id") != ex_id]
         with open(DB_FILE, "w") as f:
             json.dump(saved, f)
         
-        page.open(ft.SnackBar(ft.Text("Esercizio eliminato dal dispositivo!"), bgcolor="orange"))
-        load_data()
+        show_snack("Esercizio eliminato dal dispositivo!", "orange")
+        load_data() 
 
     txt_new_name = ft.TextField(label="Nome Esercizio", bgcolor="#1e293b", border_color="#334155", color="white")
+
+    def close_add_dialog(e=None):
+        dlg_add.open = False
+        page.update()
 
     def confirm_add(e):
         if not txt_new_name.value: return
@@ -100,23 +110,30 @@ def gestione_esercizi_view(page: ft.Page):
             json.dump(saved, f)
             
         txt_new_name.value = ""
-        page.close(dlg_add)
-        page.open(ft.SnackBar(ft.Text("Esercizio salvato in locale!"), bgcolor="green"))
+        dlg_add.open = False
+        show_snack("Esercizio salvato in locale!", "green")
         load_data()
 
     dlg_add = ft.AlertDialog(
         title=ft.Text("Nuovo Esercizio"),
         content=txt_new_name,
         actions=[
-            ft.TextButton("Annulla", on_click=lambda e: page.close(dlg_add)),
+            ft.TextButton("Annulla", on_click=close_add_dialog),
             ft.ElevatedButton("Salva", on_click=confirm_add, bgcolor=ft.Colors.CYAN_600, color="white")
         ]
     )
 
+    # --- FUNZIONE OVERLAY INFALLIBILE PER IL POPUP ---
+    def open_add_dialog(e):
+        if dlg_add not in page.overlay:
+            page.overlay.append(dlg_add)
+        dlg_add.open = True
+        page.update()
+
     view = ft.View(
         route="/esercizi",
         bgcolor="#0f172a",
-        padding=ft.padding.only(top=60, left=20, right=20, bottom=20),
+        padding=ft.Padding(top=60, left=20, right=20, bottom=20),
         controls=[
             ft.Row([
                 ft.IconButton(ft.Icons.ARROW_BACK_IOS, icon_color="white", on_click=lambda e: page.go("/schede")),
@@ -129,7 +146,8 @@ def gestione_esercizi_view(page: ft.Page):
                     ft.Text("Crea Nuovo Esercizio", color="white", weight="bold")
                 ], alignment=ft.MainAxisAlignment.CENTER),
                 bgcolor=ft.Colors.CYAN_700, padding=15, border_radius=10,
-                on_click=lambda e: page.open(dlg_add)
+                on_click=open_add_dialog, # <-- Richiama la nuova funzione!
+                ink=True # <-- Aggiunge l'effetto visivo del click!
             ),
             ft.Divider(color="transparent", height=20),
             loading,

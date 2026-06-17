@@ -155,7 +155,7 @@ def home_view(page: ft.Page):
             padding=15,
             border_radius=15,
             expand=True,
-            border=ft.border.all(1, "#334155")
+            border=ft.Border.all(1, "#334155")
         )
 
     lbl_weight = ft.Text(f"{user_weight} kg", weight="bold", color="white")
@@ -177,7 +177,7 @@ def home_view(page: ft.Page):
             ])
         ]),
         bgcolor="#0f172a", 
-        margin=ft.margin.only(bottom=20)
+        margin=ft.Margin.only(bottom=20)
     )
 
     def big_metric_card(title, value_ctrl, subtitle_ctrl, icon, color):
@@ -218,7 +218,7 @@ def home_view(page: ft.Page):
         bgcolor="#1e293b",
         padding=20,
         border_radius=15,
-        border=ft.border.all(1, ft.Colors.CYAN_900),
+        border=ft.Border.all(1, ft.Colors.CYAN_900),
         shadow=ft.BoxShadow(blur_radius=10, color=ft.Colors.CYAN_900, offset=ft.Offset(0,0))
     )
 
@@ -235,7 +235,7 @@ def home_view(page: ft.Page):
     return ft.View(
         route="/",
         bgcolor="#0f172a",
-        padding=ft.padding.only(top=60, left=20, right=20, bottom=20),
+        padding=ft.Padding.only(top=60, left=20, right=20, bottom=20),
         scroll=ft.ScrollMode.AUTO, 
         controls=[
             header,

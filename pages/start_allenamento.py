@@ -55,6 +55,13 @@ def active_workout_view(page: ft.Page):
     exercises_data = {} 
     btn_termina = ft.ElevatedButton("TERMINA ALLENAMENTO", bgcolor=ft.Colors.RED_600, color="white", height=50, width=200)
 
+    # --- FUNZIONE OVERLAY INFALLIBILE PER I BANNER DI NOTIFICA ---
+    def show_snack(msg, color):
+        snack = ft.SnackBar(ft.Text(msg, color="white", weight="bold"), bgcolor=color)
+        page.overlay.append(snack)
+        snack.open = True
+        page.update()
+
     def finish_workout(e):
         nonlocal timer_running
         
@@ -93,26 +100,28 @@ def active_workout_view(page: ft.Page):
 
         workout_log = {
             "user_email": user_email,
+            "type": "workout_log",  # <--- AGGIUNGITI QUI PER DISTINGUERE DAI TRACCIATI DELLE SCHEDE
             "nome_scheda": scheda_source.get("nome_scheda"),
             "durata": final_duration,
             "data": datetime.now().strftime("%Y-%m-%d"),
             "dettagli_esercizi": log_exercises
         }
         
-        def _save_process():
-            hash_allenamento = save_workout_local(user_email, log_data)
+        # SALVATAGGIO DIRETTO (Senza Thread)
+        try:
+            hash_allenamento = save_workout_local(user_email, workout_log)
             print(f"🔒 Hash pronto per la Blockchain: {hash_allenamento}")
-            if success:
-                page.open(ft.SnackBar(ft.Text(f"Grande! Allenamento completato in {final_duration}."), bgcolor="green"))
-                page.go("/workout")
-            else:
-                btn_termina.text = "RIPROVA"
-                btn_termina.disabled = False
-                btn_termina.bgcolor = ft.Colors.RED_600
-                page.update()
-                page.open(ft.SnackBar(ft.Text("Errore salvataggio. Riprova."), bgcolor="red"))
-
-        threading.Thread(target=_save_process).start()
+            
+            show_snack(f"Grande! Allenamento completato in {final_duration}.", "green")
+            page.go("/workout")
+            
+        except Exception as err:
+            print(f"Errore durante il salvataggio: {err}")
+            btn_termina.text = "RIPROVA"
+            btn_termina.disabled = False
+            btn_termina.bgcolor = ft.Colors.RED_600
+            page.update()
+            show_snack("Errore salvataggio. Riprova.", "red")
     
     btn_termina.on_click = finish_workout
 
@@ -121,7 +130,7 @@ def active_workout_view(page: ft.Page):
     exercises_ui_list = ft.Column(scroll=ft.ScrollMode.AUTO, expand=True, spacing=25)
 
     for i, ex in enumerate(scheda_source.get("esercizi", [])):
-        nome_ex = ex.get("exercise_name") or ex.get("nome", "Esercizio")
+        nome_ex = ex.get("exercise_name") or ex.get("nome", "Eserercicio")
         target_reps = ex.get("ripetizioni", "8-10") 
         
         #recupero storico esercizio
@@ -287,7 +296,7 @@ def active_workout_view(page: ft.Page):
             bgcolor="#0f172a", 
             padding=15,
             border_radius=15,
-            border=ft.border.all(1, "#334155")
+            border=ft.Border(top=ft.BorderSide(1, "#334155"), bottom=ft.BorderSide(1, "#334155"), left=ft.BorderSide(1, "#334155"), right=ft.BorderSide(1, "#334155"))
         )
         exercises_ui_list.controls.append(ex_card)
 
@@ -300,13 +309,13 @@ def active_workout_view(page: ft.Page):
                 txt_timer,
             ], alignment=ft.MainAxisAlignment.CENTER),
         ]),
-        padding=ft.padding.only(bottom=20)
+        padding=ft.Padding(bottom=20)
     )
 
     return ft.View(
         route="/live_workout",
         bgcolor="#0f172a",
-        padding=ft.padding.only(top=60, left=20, right=20, bottom=20),
+        padding=ft.Padding(top=60, left=20, right=20, bottom=20),
         controls=[
             header,
             exercises_ui_list,

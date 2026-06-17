@@ -1,11 +1,13 @@
 import flet as ft
-import time
-import threading 
+import threading
 from services.local_db import get_local_workouts as get_schede
+
+# --- Cache Globale ---
+_cache_schede = None
 
 def schede_view(page: ft.Page):
     user_email = page.session.store.get("user_email") or "atleta.gymlog@test.com"
-    cards_column = ft.Column(spacing=10) 
+    cards_column = ft.Column(spacing=10)
     
     loading_widget = ft.Row([
         ft.ProgressRing(color=ft.Colors.CYAN_400),
@@ -19,16 +21,14 @@ def schede_view(page: ft.Page):
         page.session.store.set("scheda_edit", scheda_data)
         page.go("/crea_scheda")
 
-    # Sostituzione locale dell'eliminazione
     def esegui_cancellazione(scheda_id):
+        global _cache_schede
         print(f"🗑️ Richiesta rimozione locale della scheda {scheda_id}")
-        # Operazione locale simulata per mantenere l'interfaccia fluida
+        # Reset cache per forzare il ricaricamento dopo la modifica
+        _cache_schede = None
         refresh_data()
 
-    # Nuovi pulsanti stile Card (Aggiornati senza bordo bianco sotto)
     actions_row = ft.Row([
-        
-        # 1. CARD: NUOVA SCHEDA (Azzurra)
         ft.Container(
             content=ft.Column([
                 ft.Icon(ft.Icons.ADD, size=35, color="white"),
@@ -36,15 +36,12 @@ def schede_view(page: ft.Page):
             ], alignment=ft.MainAxisAlignment.CENTER, horizontal_alignment=ft.CrossAxisAlignment.CENTER),
             bgcolor="#0ea5e9", 
             border_radius=15,
-            padding=ft.padding.all(20),
+            padding=20,
             expand=True, 
             on_click=andare_a_crea,
             ink=True 
         ),
-        
-        ft.Container(width=10), # Spazio centrale tra le due card
-        
-        # 2. CARD: GESTISCI ESERCIZI (Scura e pulita)
+        ft.Container(width=10), 
         ft.Container(
             content=ft.Column([
                 ft.Icon(ft.Icons.LIST_ALT, size=35, color="#0ea5e9"),
@@ -52,55 +49,74 @@ def schede_view(page: ft.Page):
             ], alignment=ft.MainAxisAlignment.CENTER, horizontal_alignment=ft.CrossAxisAlignment.CENTER),
             bgcolor="#1e293b", 
             border_radius=15,
-            padding=ft.padding.all(20),
+            padding=20,
             expand=True,
-            on_click=lambda e: page.go("/esercizi"), # Mantiene la navigazione sincrona corretta
+            on_click=lambda e: page.go("/esercizi"), 
             ink=True
         )
-        
     ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN)
 
-    def refresh_data():
+    def render_schede(unique_schede):
         cards_column.controls.clear()
+        if not unique_schede:
+            cards_column.controls.append(
+                ft.Text("Nessuna scheda trovata. Creane una nuova!", color="grey", italic=True)
+            )
+        else:
+            for s in unique_schede.values():
+                titolo = s.get("nome_scheda", "Senza Titolo")
+                split = s.get("split_type", "General")
+                num_ex = len(s.get("esercizi", []))
+                
+                card = ft.Container(
+                    content=ft.ListTile(
+                        title=ft.Text(titolo, color="white", weight="bold"),
+                        subtitle=ft.Text(f"Focus: {split} | {num_ex} Esercizi", color="#94a3b8"),
+                        on_click=lambda e, data=s: [page.session.store.set("scheda_selezionata", data), page.go("/dettaglio")],
+                        trailing=ft.PopupMenuButton(
+                            items=[
+                                ft.PopupMenuItem("Modifica", icon=ft.Icons.EDIT, on_click=lambda e, data=s: vai_a_modifica(data)),
+                                ft.PopupMenuItem("Elimina", icon=ft.Icons.DELETE, on_click=lambda e, sid=s.get("id"): esegui_cancellazione(sid)),
+                            ]
+                        )
+                    ),
+                    bgcolor="#1e293b",
+                    border_radius=12,
+                    padding=5
+                )
+                cards_column.controls.append(card)
+        loading_widget.visible = False
+        page.update()
+
+    def refresh_data():
+        global _cache_schede
         loading_widget.visible = True
         page.update()
+
+        # Uso cache se disponibile
+        if _cache_schede is not None:
+            render_schede(_cache_schede)
+            return
         
         try:
             schede_list = get_schede(user_email)
-            loading_widget.visible = False
             
-            if not schede_list:
-                cards_column.controls.append(
-                    ft.Text("Nessuna scheda trovata. Creane una nuova!", color="grey", italic=True)
-                )
-            else:
+            # --- LOGICA FILTRO ANTI-DUPLICATI E ANTI-ALLENAMENTI ---
+            unique_schede = {}
+            if schede_list:
                 for s in schede_list:
-                    titolo = s.get("nome_scheda", "Senza Titolo")
-                    split = s.get("split_type", "General")
-                    num_ex = len(s.get("esercizi", []))
-                    
-                    card = ft.Container(
-                        content=ft.ListTile(
-                            title=ft.Text(titolo, color="white", weight="bold"),
-                            subtitle=ft.Text(f"Focus: {split} | {num_ex} Esercizi", color="#94a3b8"),
-                            on_click=lambda e, data=s: [page.session.store.set("scheda_selezionata", data), page.go("/dettaglio")],
-                            trailing=ft.PopupMenuButton(
-                                items=[
-                                    ft.PopupMenuItem(text="Modifica", icon=ft.Icons.EDIT, on_click=lambda e, data=s: vai_a_modifica(data)),
-                                    ft.PopupMenuItem(text="Elimina", icon=ft.Icons.DELETE, on_click=lambda e, sid=s.get("id"): esegui_cancellazione(sid)),
-                                ]
-                            )
-                        ),
-                        bgcolor="#1e293b",
-                        border_radius=12,
-                        padding=5
-                    )
-                    cards_column.controls.append(card)
+                    if s.get("type") == "scheda" or ("split_type" in s and "durata" not in s):
+                        s_id = s.get("id")
+                        if s_id:
+                            unique_schede[s_id] = s
+            
+            _cache_schede = unique_schede
+            render_schede(unique_schede)
+            
         except Exception as ex:
             print(f"Errore caricamento schede: {ex}")
             loading_widget.visible = False
-            
-        page.update()
+            page.update()
 
     def nav_change(e):
         index = e.control.selected_index
@@ -108,18 +124,17 @@ def schede_view(page: ft.Page):
         elif index == 1: page.go("/")
         elif index == 2: page.go("/workout")
 
-    # Innesco del caricamento iniziale asincrono
     threading.Thread(target=refresh_data, daemon=True).start()
 
     return ft.View(
         route="/schede",
         bgcolor="#0f172a", 
-        padding=ft.padding.only(top=60, left=20, right=20, bottom=20), 
+        padding=ft.Padding.only(top=60, left=20, right=20, bottom=20), 
         controls=[
             ft.Column([
                 ft.Container(
                     content=ft.Text("Le tue Schede", size=30, weight=ft.FontWeight.BOLD, color=ft.Colors.WHITE),
-                    margin=ft.margin.only(bottom=20) 
+                    margin=ft.Margin.only(bottom=20) 
                 ),
                 actions_row, 
                 ft.Divider(color="transparent", height=20),

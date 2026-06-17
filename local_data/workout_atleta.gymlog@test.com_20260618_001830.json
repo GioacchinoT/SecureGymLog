@@ -1,0 +1,16 @@
+{
+    "user_email": "atleta.gymlog@test.com",
+    "nome_scheda": "Giorno 1",
+    "durata": "0m 2s",
+    "data": "2026-06-18",
+    "dettagli_esercizi": [
+        {
+            "exercise_name": "es prova 1",
+            "sets_performed": []
+        },
+        {
+            "exercise_name": "Esercizio Prova Aggiunto in crea scheda",
+            "sets_performed": []
+        }
+    ]
+}

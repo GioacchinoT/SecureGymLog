@@ -17,7 +17,7 @@ os.environ["SSL_CERT_FILE"] = ""
 def main(page: ft.Page):
     page.title = "GymLog"
     page.theme_mode = ft.ThemeMode.DARK
-    page.padding = 0
+    page.Padding = 0
     
     def route_change(route):
         page.views.clear()

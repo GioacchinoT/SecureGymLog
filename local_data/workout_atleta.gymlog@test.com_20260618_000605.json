@@ -1,0 +1,20 @@
+{
+    "id": "760ee369-0eb9-4981-91c6-444117e24a49",
+    "user_email": "atleta.gymlog@test.com",
+    "type": "scheda",
+    "nome_scheda": "Gio",
+    "split_type": "",
+    "created_at": "18/06/2026",
+    "esercizi": [
+        {
+            "id": "ba8930b6",
+            "user_email": "atleta.gymlog@test.com",
+            "type": "esercizio_catalogo",
+            "exercise_name": "Esercizio Prova Aggiunto in crea scheda",
+            "serie": "3",
+            "ripetizioni": "10",
+            "is_custom": false,
+            "note_ai": "Aggiunto manualmente"
+        }
+    ]
+}

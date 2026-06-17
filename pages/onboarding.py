@@ -34,7 +34,7 @@ def onboarding_view(page: ft.Page):
 
     return ft.View(
         route="/welcome",
-        padding=ft.padding.only(top=60, left=20, right=20, bottom=20), 
+        padding=ft.Padding(top=60, left=20, right=20, bottom=20), 
         bgcolor="#0f172a",
         controls=[
             ft.Container(

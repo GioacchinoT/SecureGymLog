@@ -48,7 +48,7 @@ def dettaglio_view(page: ft.Page):
                 padding=15,
                 bgcolor="#1e293b", 
                 border_radius=12,
-                border=ft.border.all(1, "#334155")
+                border=ft.Border(top=ft.BorderSide(1, "#334155"), bottom=ft.BorderSide(1, "#334155"), left=ft.BorderSide(1, "#334155"), right=ft.BorderSide(1, "#334155"))
             )
             esercizi_controls.append(row)
 
@@ -61,7 +61,7 @@ def dettaglio_view(page: ft.Page):
     return ft.View(
         route="/dettaglio",
         bgcolor="#0f172a", # Slate 900
-        padding=ft.padding.only(top=60, left=20, right=20, bottom=20),
+        padding=ft.Padding(top=60, left=20, right=20, bottom=20),
         controls=[
             # Header con pulsante Indietro
             ft.Row([
@@ -97,7 +97,7 @@ def dettaglio_view(page: ft.Page):
                 padding=20,
                 bgcolor="#1e293b",
                 border_radius=15,
-                border=ft.border.only(left=ft.border.BorderSide(5, ft.Colors.CYAN_400)) # Bordo colorato a sinistra
+                border=ft.Border(left=ft.BorderSide(5, ft.Colors.CYAN_400)) # Bordo colorato a sinistra
             ),
             
             ft.Divider(color="transparent", height=20),

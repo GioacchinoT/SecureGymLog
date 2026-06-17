@@ -1,0 +1,30 @@
+{
+    "id": "a52415fa-52cc-4ca4-a68a-92f606d06c6d",
+    "user_email": "atleta.gymlog@test.com",
+    "type": "scheda",
+    "nome_scheda": "Giorno 1",
+    "split_type": "",
+    "created_at": "18/06/2026",
+    "esercizi": [
+        {
+            "id": "d7f61701",
+            "user_email": "atleta.gymlog@test.com",
+            "type": "esercizio_catalogo",
+            "exercise_name": "es prova 1",
+            "serie": "3",
+            "ripetizioni": "10",
+            "is_custom": false,
+            "note_ai": "Aggiunto manualmente"
+        },
+        {
+            "id": "0cdee9b8",
+            "user_email": "atleta.gymlog@test.com",
+            "type": "esercizio_catalogo",
+            "exercise_name": "Esercizio Prova Aggiunto in crea scheda",
+            "serie": "3",
+            "ripetizioni": "10",
+            "is_custom": true,
+            "note_ai": "Aggiunto manualmente"
+        }
+    ]
+}

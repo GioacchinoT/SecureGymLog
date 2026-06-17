@@ -30,7 +30,7 @@ def dettaglio_allenamento_view(page: ft.Page):
         padding=20,
         bgcolor="#1e293b",
         border_radius=15,
-        border=ft.border.only(left=ft.border.BorderSide(5, ft.Colors.CYAN_400))
+        border=ft.Border(left=ft.BorderSide(5, ft.Colors.CYAN_400)) # <-- CORRETTO QUI
     )
 
     # lista esercizi
@@ -80,7 +80,7 @@ def dettaglio_allenamento_view(page: ft.Page):
                 bgcolor="#1e293b",
                 padding=15,
                 border_radius=12,
-                border=ft.border.all(1, "#334155")
+                border=ft.Border(top=ft.BorderSide(1, "#334155"), bottom=ft.BorderSide(1, "#334155"), left=ft.BorderSide(1, "#334155"), right=ft.BorderSide(1, "#334155")) # <-- CORRETTO QUI
             )
             exercises_column.controls.append(card)
 

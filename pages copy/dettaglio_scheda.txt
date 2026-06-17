@@ -2,7 +2,7 @@ import flet as ft
 
 def dettaglio_view(page: ft.Page):
     # recupero dati della scheda salvati nella memoria temporanea
-    scheda = page.session.store.get("scheda_selezionata")
+    scheda = page.client_storage.get("scheda_selezionata")
     
     # se per qualche motivo non ci sono dati torna indietro
     if not scheda:
@@ -34,7 +34,7 @@ def dettaglio_view(page: ft.Page):
                     ft.Container(
                         content=ft.Text(str(i+1), color="black", weight="bold"),
                         bgcolor=ft.Colors.BLUE_400, width=30, height=30, border_radius=15,
-                        alignment=ft.Alignment(0, 0)
+                        alignment=ft.alignment.center
                     ),
                     ft.Container(width=10),
                     # dettagli
@@ -54,12 +54,12 @@ def dettaglio_view(page: ft.Page):
 
     def go_edit(e):
         # in caso di modifica salvo la scheda corrente nello slot locale di modifica
-        page.session.store.set("scheda_edit", scheda)
+        page.client_storage.set("scheda_edit", scheda)
         page.go("/crea_scheda")
 
     # UI
     return ft.View(
-        route="/dettaglio",
+        "/dettaglio",
         bgcolor="#0f172a", # Slate 900
         padding=ft.padding.only(top=60, left=20, right=20, bottom=20),
         controls=[

@@ -4,7 +4,7 @@ import threading
 from services.local_db import get_local_workouts as get_schede
 
 def schede_view(page: ft.Page):
-    user_email = page.session.store.get("user_email") or "atleta.gymlog@test.com"
+    user_email = page.client_storage.get("user_email") or "atleta.gymlog@test.com"
     cards_column = ft.Column(spacing=10) 
     
     loading_widget = ft.Row([
@@ -12,11 +12,11 @@ def schede_view(page: ft.Page):
     ], alignment=ft.MainAxisAlignment.CENTER, visible=True)
 
     def andare_a_crea(e):
-        page.session.store.remove("scheda_edit")
+        page.client_storage.remove("scheda_edit")
         page.go("/crea_scheda")
 
     def vai_a_modifica(scheda_data):
-        page.session.store.set("scheda_edit", scheda_data)
+        page.client_storage.set("scheda_edit", scheda_data)
         page.go("/crea_scheda")
 
     # Sostituzione locale dell'eliminazione
@@ -25,39 +25,20 @@ def schede_view(page: ft.Page):
         # Operazione locale simulata per mantenere l'interfaccia fluida
         refresh_data()
 
-    # Nuovi pulsanti stile Card (Aggiornati senza bordo bianco sotto)
     actions_row = ft.Row([
-        
-        # 1. CARD: NUOVA SCHEDA (Azzurra)
-        ft.Container(
-            content=ft.Column([
-                ft.Icon(ft.Icons.ADD, size=35, color="white"),
-                ft.Text("Nuova Scheda", size=16, weight="bold", color="white")
-            ], alignment=ft.MainAxisAlignment.CENTER, horizontal_alignment=ft.CrossAxisAlignment.CENTER),
-            bgcolor="#0ea5e9", 
-            border_radius=15,
-            padding=ft.padding.all(20),
-            expand=True, 
-            on_click=andare_a_crea,
-            ink=True 
+        ft.ElevatedButton(
+            text="Nuova Scheda",
+            icon=ft.Icons.ADD,
+            bgcolor=ft.Colors.BLUE_600,
+            color=ft.Colors.WHITE,
+            on_click=andare_a_crea
         ),
-        
-        ft.Container(width=10), # Spazio centrale tra le due card
-        
-        # 2. CARD: GESTISCI ESERCIZI (Scura e pulita)
-        ft.Container(
-            content=ft.Column([
-                ft.Icon(ft.Icons.LIST_ALT, size=35, color="#0ea5e9"),
-                ft.Text("Gestisci Esercizi", size=16, weight="bold", color="#0ea5e9")
-            ], alignment=ft.MainAxisAlignment.CENTER, horizontal_alignment=ft.CrossAxisAlignment.CENTER),
-            bgcolor="#1e293b", 
-            border_radius=15,
-            padding=ft.padding.all(20),
-            expand=True,
-            on_click=lambda e: page.go("/esercizi"), # Mantiene la navigazione sincrona corretta
-            ink=True
+        ft.IconButton(
+            icon=ft.Icons.FITNESS_CENTER,
+            icon_color=ft.Colors.CYAN_400,
+            tooltip="Gestisci Esercizi",
+            on_click=lambda e: page.go("/esercizi")
         )
-        
     ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN)
 
     def refresh_data():
@@ -83,7 +64,7 @@ def schede_view(page: ft.Page):
                         content=ft.ListTile(
                             title=ft.Text(titolo, color="white", weight="bold"),
                             subtitle=ft.Text(f"Focus: {split} | {num_ex} Esercizi", color="#94a3b8"),
-                            on_click=lambda e, data=s: [page.session.store.set("scheda_selezionata", data), page.go("/dettaglio")],
+                            on_click=lambda e, data=s: [page.client_storage.set("scheda_selezionata", data), page.go("/dettaglio")],
                             trailing=ft.PopupMenuButton(
                                 items=[
                                     ft.PopupMenuItem(text="Modifica", icon=ft.Icons.EDIT, on_click=lambda e, data=s: vai_a_modifica(data)),
@@ -112,7 +93,7 @@ def schede_view(page: ft.Page):
     threading.Thread(target=refresh_data, daemon=True).start()
 
     return ft.View(
-        route="/schede",
+        "/schede",
         bgcolor="#0f172a", 
         padding=ft.padding.only(top=60, left=20, right=20, bottom=20), 
         controls=[

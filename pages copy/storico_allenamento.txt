@@ -1,9 +1,9 @@
 import flet as ft
 import threading
-from services.local_db import get_local_workouts as get_workout_logs, get_local_workouts as get_schede
+from services.local_db import get_local_workouts as get_workout_logs
 
 def workout_view(page: ft.Page):
-    user_email = page.session.store.get("user_email")
+    user_email = page.client_storage.get("user_email")
     
     # lista storico
     history_column = ft.ListView(
@@ -16,7 +16,7 @@ def workout_view(page: ft.Page):
     
     def open_detail_page(e, log_data):
         # salvataggio dati e routing verso pagina di dettaglio
-        page.session.store.set("allenamento_selezionato", log_data)
+        page.client_storage.set("allenamento_selezionato", log_data)
         page.go("/dettaglio_allenamento")
 
     # CARICAMENTO DATI STORICO 
@@ -28,7 +28,7 @@ def workout_view(page: ft.Page):
             history_column.controls.append(
                 ft.Container(
                     content=ft.Text("Nessun allenamento completato.", color="grey", italic=True),
-                    alignment=ft.Alignment(0, 0),
+                    alignment=ft.alignment.center,
                     padding=20
                 )
             )
@@ -75,7 +75,7 @@ def workout_view(page: ft.Page):
 
     # LOGICA BTN INIZIA
     def start_workout(scheda):
-        page.session.store.set("workout_active_scheda", scheda)
+        page.client_storage.set("workout_active_scheda", scheda)
         page.close(bs_schede)
         page.go("/live_workout")
 
@@ -129,7 +129,7 @@ def workout_view(page: ft.Page):
 
     # UI 
     return ft.View(
-        route="/workout",
+        "/workout",
         bgcolor="#0f172a",
         padding=ft.padding.only(top=60, left=0, right=0, bottom=0), 
         controls=[

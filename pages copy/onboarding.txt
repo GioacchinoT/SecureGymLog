@@ -10,9 +10,9 @@ def onboarding_view(page: ft.Page):
         page.update()
         
         # Simuliamo un'autenticazione locale istantanea
-        page.session.store.set("user_email", "atleta.gymlog@test.com")
-        page.session.store.set("user_name", "Atleta Secure")
-        page.session.store.set("oid", "local_user_999")
+        page.client_storage.set("user_email", "atleta.gymlog@test.com")
+        page.client_storage.set("user_name", "Atleta Secure")
+        page.client_storage.set("oid", "local_user_999")
         
         print("🔒 Autenticazione completata con successo in locale.")
         page.go("/")
@@ -33,7 +33,7 @@ def onboarding_view(page: ft.Page):
     )
 
     return ft.View(
-        route="/welcome",
+        "/welcome",
         padding=ft.padding.only(top=60, left=20, right=20, bottom=20), 
         bgcolor="#0f172a",
         controls=[
@@ -48,7 +48,7 @@ def onboarding_view(page: ft.Page):
                     ft.Container(height=10),
                     error_txt,
                 ], horizontal_alignment=ft.CrossAxisAlignment.CENTER),
-                alignment=ft.Alignment(0, 0),
+                alignment=ft.alignment.center,
                 expand=True
             )
         ]

@@ -2,29 +2,16 @@ import flet as ft
 import uuid
 from datetime import datetime
 from services.local_db import save_workout_local
-import os
-import json
-
 
 def create_routine_view(page: ft.Page):
-    current_user = page.session.store.get("user_email") or "atleta.gymlog@test.com"
+    current_user = page.client_storage.get("user_email") or "atleta.gymlog@test.com"
     
-    scheda_da_modificare = page.session.store.get("scheda_edit")
+    scheda_da_modificare = page.client_storage.get("scheda_edit")
     is_editing = scheda_da_modificare is not None
     exercises_buffer = scheda_da_modificare.get("esercizi", []) if is_editing else []
     
-    # Carica la lista base
+    # HARDCODED LOCALE - Sostituisce il vecchio database esercizi di Azure
     lista_esercizi_db = ["Panca Piana", "Squat", "Stacco da terra", "Trazioni", "Lento Avanti", "Bicipiti Bilanciere"]
-    
-    # Legge il database locale e aggiunge i tuoi esercizi personalizzati
-    if os.path.exists("local_data/custom_esercizi.json"):
-        try:
-            with open("local_data/custom_esercizi.json", "r") as f:
-                custom_ex = json.load(f)
-                for ex in custom_ex:
-                    lista_esercizi_db.append(ex.get("exercise_name"))
-        except:
-            pass
 
     options_list = [ft.dropdown.Option(ex) for ex in lista_esercizi_db]
 
@@ -79,7 +66,7 @@ def create_routine_view(page: ft.Page):
         hash_generato = save_workout_local(current_user, workout_data)
         print(f"🔒 [BLOCKCHAIN READY] Hash SHA-256 generato per la notarizzazione: {hash_generato}")
         
-        page.session.store.remove("scheda_edit")
+        page.client_storage.remove("scheda_edit")
         page.go("/schede")
 
     # Modale minimale per aggiunta esercizio rapido
@@ -112,12 +99,12 @@ def create_routine_view(page: ft.Page):
     render_buffer()
 
     return ft.View(
-        route="/crea_scheda",
+        "/crea_scheda",
         bgcolor="#0f172a",
         padding=20,
         controls=[
             ft.Row([
-                ft.IconButton(ft.Icons.ARROW_BACK_IOS, icon_color="white", on_click=lambda e: [page.session.store.remove("scheda_edit"), page.go("/schede")]),
+                ft.IconButton(ft.Icons.ARROW_BACK_IOS, icon_color="white", on_click=lambda e: [page.client_storage.remove("scheda_edit"), page.go("/schede")]),
                 ft.Text("Nuova Scheda", size=24, weight="bold", color="white"),
                 ft.ElevatedButton("Salva", bgcolor=ft.Colors.BLUE_500, color="white", on_click=salva_scheda_logico)
             ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),

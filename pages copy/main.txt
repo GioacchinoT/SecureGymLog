@@ -67,7 +67,7 @@ def main(page: ft.Page):
     page.on_route_change = route_change
     page.on_view_pop = view_pop
 
-    user_email = page.session.store.get("user_email")
+    user_email = page.client_storage.get("user_email")
     
     if user_email:
         page.go("/")
@@ -81,4 +81,4 @@ if __name__ == "__main__":
         port=8080, 
         host="0.0.0.0" 
     )"""
-    ft.run(main, assets_dir="assets")
+    ft.app(target=main, assets_dir="assets")

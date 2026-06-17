@@ -4,16 +4,16 @@ from services.local_db import get_local_workouts  # <-- Nuovo import locale
 
 def home_view(page: ft.Page):
     # recupero dati utente
-    user_email = page.session.store.get("user_email")
-    user_name = page.session.store.get("user_name") 
-    user_oid = page.session.store.get("oid")
+    user_email = page.client_storage.get("user_email")
+    user_name = page.client_storage.get("user_name") 
+    user_oid = page.client_storage.get("oid")
     
     if not user_name:
         user_name = user_email or "Atleta"
 
-    cached_weight = page.session.store.get("user_weight")
-    cached_height = page.session.store.get("user_height")
-    cached_age = page.session.store.get("user_age")
+    cached_weight = page.client_storage.get("user_weight")
+    cached_height = page.client_storage.get("user_height")
+    cached_age = page.client_storage.get("user_age")
 
     # Inizializzazione dati utente in locale (Nessun server)
     if not cached_weight or not cached_height or not cached_age:
@@ -80,9 +80,9 @@ def home_view(page: ft.Page):
         lbl_age.value = f"{user_age} anni"
 
         # aggiornamento cache locale (Niente chiamate ad Azure!)
-        page.session.store.set("user_weight", user_weight)
-        page.session.store.set("user_height", user_height)
-        page.session.store.set("user_age", user_age)
+        page.client_storage.set("user_weight", user_weight)
+        page.client_storage.set("user_height", user_height)
+        page.client_storage.set("user_age", user_age)
         print("--> Cache locale aggiornata con i nuovi dati")
         
         calculate_metrics()
@@ -102,8 +102,8 @@ def home_view(page: ft.Page):
 
 
     # caricamento dati allenamento
-    cached_num_schede = page.session.store.get("stats_num_schede") or "..."
-    cached_num_ex = page.session.store.get("stats_num_ex") or "..."
+    cached_num_schede = page.client_storage.get("stats_num_schede") or "..."
+    cached_num_ex = page.client_storage.get("stats_num_ex") or "..."
 
     lbl_count_schede = ft.Text(str(cached_num_schede), size=24, weight="bold", color=ft.Colors.CYAN_400)
     lbl_count_esercizi = ft.Text(str(cached_num_ex), size=24, weight="bold", color=ft.Colors.PURPLE_400)
@@ -122,8 +122,8 @@ def home_view(page: ft.Page):
             page.update()
             
             # aggiornamento cache
-            page.session.store.set("stats_num_schede", num_schede)
-            page.session.store.set("stats_num_ex", num_ex)
+            page.client_storage.set("stats_num_schede", num_schede)
+            page.client_storage.set("stats_num_ex", num_ex)
             
         except Exception as e:
             print(f"Errore stats: {e}")
@@ -139,7 +139,7 @@ def home_view(page: ft.Page):
         ], expand=True),  
         
         ft.IconButton(ft.Icons.LOGOUT, icon_color="red", tooltip="Esci", 
-                      on_click=lambda e: [page.session.store.clear(), page.go("/welcome")])
+                      on_click=lambda e: [page.client_storage.clear(), page.go("/welcome")])
     ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN)
 
 
@@ -233,7 +233,7 @@ def home_view(page: ft.Page):
     calculate_metrics()
 
     return ft.View(
-        route="/",
+        "/",
         bgcolor="#0f172a",
         padding=ft.padding.only(top=60, left=20, right=20, bottom=20),
         scroll=ft.ScrollMode.AUTO, 

@@ -2,7 +2,7 @@ import flet as ft
 
 def dettaglio_allenamento_view(page: ft.Page):
     # recuoero dati dalla memoria
-    workout = page.session.store.get("allenamento_selezionato")
+    workout = page.client_storage.get("allenamento_selezionato")
     
     # se mancano i dati ritorna allo storico
     if not workout:
@@ -85,7 +85,7 @@ def dettaglio_allenamento_view(page: ft.Page):
             exercises_column.controls.append(card)
 
     return ft.View(
-        route="/dettaglio_allenamento",
+        "/dettaglio_allenamento",
         bgcolor="#0f172a",
         padding=20, 
         controls=[

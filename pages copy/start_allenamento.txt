@@ -7,8 +7,8 @@ from services.local_db import save_workout_local, get_local_workouts as get_work
 def active_workout_view(page: ft.Page):
 
     #recupero scheda scelta per allenamento
-    scheda_source = page.session.store.get("workout_active_scheda")
-    user_email = page.session.store.get("user_email")
+    scheda_source = page.client_storage.get("workout_active_scheda")
+    user_email = page.client_storage.get("user_email")
 
     if not scheda_source:
         page.go("/workout")
@@ -205,7 +205,7 @@ def active_workout_view(page: ft.Page):
                 content=ft.Row([
                     ft.Container(
                         content=ft.Text(str(display_num), weight="bold", color="grey", size=16), 
-                        width=30, alignment=ft.Alignment(0, 0)
+                        width=30, alignment=ft.alignment.center
                     ),
                     txt_kg,
                     txt_reps,
@@ -304,13 +304,13 @@ def active_workout_view(page: ft.Page):
     )
 
     return ft.View(
-        route="/live_workout",
+        "/live_workout",
         bgcolor="#0f172a",
         padding=ft.padding.only(top=60, left=20, right=20, bottom=20),
         controls=[
             header,
             exercises_ui_list,
             ft.Container(height=10),
-            ft.Container(content=btn_termina, alignment=ft.Alignment(0, 0), padding=20)
+            ft.Container(content=btn_termina, alignment=ft.alignment.center, padding=20)
         ]
     )

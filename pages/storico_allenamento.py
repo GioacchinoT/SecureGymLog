@@ -1,113 +1,152 @@
 import flet as ft
-import threading
+import asyncio
 from services.local_db import get_local_workouts as get_workout_logs
+from services.blockchain_db import verifica_integrita_onchain
 
-def workout_view(page: ft.Page):
-    user_email = page.session.store.get("user_email")
-    
-    history_column = ft.ListView(
-        spacing=10, 
-        expand=True, 
-        padding=ft.Padding(left=0, top=0, right=10, bottom=100)
-    )
-    
-    loading_history = ft.ProgressRing(color=ft.Colors.CYAN_400)
-    
-    def open_detail_page(e, log_data):
-        page.session.store.set("allenamento_selezionato", log_data)
-        page.go("/dettaglio_allenamento")
-
-    import flet as ft
-import threading
-from services.local_db import get_local_workouts as get_workout_logs
-
-# --- Cache Globale ---
 _cache_storico = None
 
 def workout_view(page: ft.Page):
-    user_email = page.session.store.get("user_email")
-    
-    history_column = ft.ListView(spacing=10, expand=True, padding=ft.Padding.only(left=0, top=0, right=10, bottom=100))
+    global _cache_storico
+
+    user_address = page.session.store.get("user_address")
+
+    history_column  = ft.ListView(spacing=10, expand=True,
+                                   padding=ft.Padding.only(left=0, top=0, right=10, bottom=100))
     loading_history = ft.ProgressRing(color=ft.Colors.CYAN_400)
-    
-    def render_logs(logs):
+
+    # --- NUOVA FUNZIONE: Navigazione al dettaglio ---
+    def vai_a_dettaglio_allenamento(log_data):
+        page.session.store.set("allenamento_selezionato", log_data)
+        page.go("/dettaglio_allenamento")
+
+    def render_logs(logs: list):
         history_column.controls.clear()
-        if not logs:
-            history_column.controls.append(ft.Container(content=ft.Text("Nessun allenamento.", color="grey"), padding=20))
+        only_logs = [l for l in logs if l.get("type") == "workout_log"]
+
+        if not only_logs:
+            history_column.controls.append(
+                ft.Container(
+                    content=ft.Text("Nessun allenamento registrato.", color="grey", italic=True),
+                    padding=20
+                )
+            )
         else:
-            for log in logs:
-                # ... (qui va il tuo codice esistente per creare le card) ...
-                pass
+            for log in reversed(only_logs):
+                nome   = log.get("nome_scheda", "Allenamento")
+                data   = log.get("data", "Data sconosciuta")
+                durata = log.get("durata", "--")
+                n_ex   = len(log.get("dettagli_esercizi", []))
+
+                lbl_verifica = ft.Text("", size=12, italic=True)
+
+                def on_verifica(e, log_data=log, label=lbl_verifica):
+                    label.value = "⏳ Verifica in corso..."
+                    label.color = "grey"
+                    page.update()
+                    dati_per_hash = {k: v for k, v in log_data.items()
+                                     if k != '_local_filename'}
+                    esito, messaggio = verifica_integrita_onchain(user_address, dati_per_hash)
+                    label.value = messaggio
+                    label.color = ft.Colors.GREEN_400 if esito else ft.Colors.RED_400
+                    page.update()
+
+                card = ft.Container(
+                    content=ft.Column([
+                        ft.Row([
+                            ft.Column([
+                                ft.Text(nome, weight="bold", color="white", size=16),
+                                ft.Row([
+                                    ft.Icon(ft.Icons.CALENDAR_TODAY, size=14, color="grey"),
+                                    ft.Text(data, color="grey", size=13),
+                                    ft.Container(width=10),
+                                    ft.Icon(ft.Icons.TIMER, size=14, color="grey"),
+                                    ft.Text(durata, color="grey", size=13),
+                                    ft.Container(width=10),
+                                    ft.Icon(ft.Icons.FITNESS_CENTER, size=14, color="grey"),
+                                    ft.Text(f"{n_ex} esercizi", color="grey", size=13),
+                                ])
+                            ], expand=True),
+                            ft.IconButton(
+                                icon=ft.Icons.VERIFIED_OUTLINED,
+                                icon_color=ft.Colors.CYAN_400,
+                                tooltip="Verifica integrità sulla Blockchain",
+                                on_click=on_verifica
+                            )
+                        ]),
+                        lbl_verifica
+                    ]),
+                    bgcolor="#1e293b",
+                    border_radius=12,
+                    padding=15,
+                    border=ft.Border.all(1, "#334155"),
+                    # AGGIUNTO: Rendiamo la card cliccabile per andare ai dettagli
+                    on_click=lambda e, log_data=log: vai_a_dettaglio_allenamento(log_data),
+                    ink=True  # Effetto ripple al click
+                )
+                history_column.controls.append(card)
+
         loading_history.visible = False
         page.update()
 
-    def load_history():
+    async def load_history_async():
         global _cache_storico
-        # Se la cache esiste, usa quella
-        if _cache_storico is not None:
+        
+        loading_history.visible = True
+        page.update()
+        await asyncio.sleep(0.05) 
+
+        try:
+            logs = get_workout_logs(user_address) if user_address else []
+            _cache_storico = logs if logs else []
             render_logs(_cache_storico)
-            return
-
-        # Altrimenti carica dal disco e salva in cache
-        logs = get_workout_logs(user_email)
-        _cache_storico = logs if logs else []
-        render_logs(_cache_storico)
-
-    # Avvio caricamento in background
-    threading.Thread(target=load_history, daemon=True).start()
-    
+        except Exception as ex:
+            print(f"Errore caricamento storico: {ex}")
+            loading_history.visible = False
+            page.update()
 
     def start_workout(scheda):
         page.session.store.set("workout_active_scheda", scheda)
-        bs_schede.open = False 
+        bs_schede.open = False
         page.update()
         page.go("/live_workout")
 
     bs_schede_content = ft.Column(scroll=ft.ScrollMode.AUTO, expand=True, spacing=10)
-    
     bs_schede = ft.BottomSheet(
         ft.Container(
             content=bs_schede_content,
             padding=20,
             bgcolor="#1e293b",
             border_radius=ft.BorderRadius(top_left=20, top_right=20, bottom_left=0, bottom_right=0),
-            height=500 
+            height=500
         )
     )
 
     def open_start_dialog(e):
-        from services.local_db import get_local_workouts as get_schede
-        schede = get_schede(user_email)
+        all_data = get_workout_logs(user_address) if user_address else []
         bs_schede_content.controls.clear()
-        
         bs_schede_content.controls.append(
-            ft.Container(
-                content=ft.Text("Scegli la scheda", size=20, weight="bold", color="white"),
-                padding=ft.Padding(bottom=10)
-            )
+            ft.Container(content=ft.Text("Scegli la scheda", size=20, weight="bold", color="white"),
+                         padding=ft.Padding(bottom=10))
         )
-        
-        # Filtriamo le schede reali valide da mostrare nella tendina di inizio allenamento
-        valid_schede = [s for s in schede if s.get("type") == "scheda" or ("split_type" in s and "durata" not in s)] if schede else []
-        
-        # Elimina i duplicati per ID anche dalla tendina di selezione iniziale
-        unique_start_schede = {}
-        for s in valid_schede:
-            if s.get("id"): unique_start_schede[s["id"]] = s
-
-        if not unique_start_schede:
-            bs_schede_content.controls.append(ft.Text("Nessuna scheda trovata. Creane una prima!", color="red"))
+        valid_schede = {
+            s["id"]: s for s in all_data
+            if (s.get("type") == "scheda" or ("split_type" in s and "durata" not in s))
+            and s.get("id")
+        }
+        if not valid_schede:
+            bs_schede_content.controls.append(
+                ft.Text("Nessuna scheda trovata. Creane una prima!", color="red")
+            )
         else:
-            for s in unique_start_schede.values():
+            for s in valid_schede.values():
                 tile = ft.ListTile(
                     leading=ft.Icon(ft.Icons.FITNESS_CENTER, color=ft.Colors.CYAN_400),
-                    title=ft.Text(s.get("nome_scheda"), color="white", weight="bold"),
+                    title=ft.Text(s.get("nome_scheda", "Scheda"), color="white", weight="bold"),
                     subtitle=ft.Text(f"{len(s.get('esercizi', []))} Esercizi", color="grey"),
                     on_click=lambda e, x=s: start_workout(x),
                     bgcolor="#0f172a",
                 )
                 bs_schede_content.controls.append(tile)
-        
         if bs_schede not in page.overlay:
             page.overlay.append(bs_schede)
         bs_schede.open = True
@@ -115,14 +154,13 @@ def workout_view(page: ft.Page):
 
     def nav_change(e):
         index = e.control.selected_index
-        if index == 0: page.go("/schede")
+        if index == 0:   page.go("/schede")
         elif index == 1: page.go("/")
-        elif index == 2: pass 
 
-    return ft.View(
+    view = ft.View(
         route="/workout",
         bgcolor="#0f172a",
-        padding=ft.Padding(top=60, left=0, right=0, bottom=0), 
+        padding=ft.Padding(top=60, left=0, right=0, bottom=0),
         controls=[
             ft.Container(
                 padding=20,
@@ -130,16 +168,15 @@ def workout_view(page: ft.Page):
                 content=ft.Column([
                     ft.Text("Storico Allenamenti", size=28, weight=ft.FontWeight.BOLD, color="white"),
                     ft.Divider(color="transparent", height=10),
-                    
                     ft.Row([loading_history], alignment=ft.MainAxisAlignment.CENTER),
-                    
                     history_column
-                ], expand=True) 
+                ], expand=True)
             )
         ],
         floating_action_button=ft.FloatingActionButton(
             bgcolor=ft.Colors.CYAN_600,
-            content=ft.Row([ft.Icon(ft.Icons.PLAY_ARROW), ft.Text("INIZIA", weight="bold")], alignment=ft.MainAxisAlignment.CENTER),
+            content=ft.Row([ft.Icon(ft.Icons.PLAY_ARROW), ft.Text("INIZIA", weight="bold")],
+                           alignment=ft.MainAxisAlignment.CENTER),
             width=120,
             on_click=open_start_dialog
         ),
@@ -156,3 +193,6 @@ def workout_view(page: ft.Page):
             on_change=nav_change
         )
     )
+
+    page.run_task(load_history_async)
+    return view

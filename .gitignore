@@ -1,0 +1,30 @@
+# ==========================================
+# SECURE GYM LOG - .gitignore
+# ==========================================
+
+# 1. Dati Sensibili Off-Chain (GDPR)
+# ASSOLUTAMENTE DA NON CARICARE SU GIT!
+local_data/
+
+# 2. Cache e file compilati Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# 3. Backup locali temporanei
+pages_copy/
+
+# 4. Ambiente Virtuale Python (se ne usi uno)
+venv/
+env/
+.venv/
+
+services/__pycache__/
+pages/__pycache__/
+
+
+# 5. File di Hardhat e Node.js (Blockchain)
+blockchain/node_modules/
+blockchain/cache/
+blockchain/artifacts/
+blockchain/ignition/

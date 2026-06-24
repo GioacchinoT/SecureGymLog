@@ -1,12 +1,12 @@
 import flet as ft
-import time
 import threading
 import json
 import os
 import uuid
 
 def gestione_esercizi_view(page: ft.Page):
-    user_email = page.session.store.get("user_email")
+    # Usiamo user_address invece di user_email per coerenza DApp
+    user_address = page.session.store.get("user_address")
     
     exercises_column = ft.Column(spacing=10)
     loading = ft.ProgressRing(color=ft.Colors.CYAN_400, visible=True)
@@ -27,7 +27,7 @@ def gestione_esercizi_view(page: ft.Page):
         page.update()
         
         # Uniamo gli esercizi di base a quelli salvati dall'utente
-        base_items = ["Panca Piana", "Squat", "Stacco da terra", "Trazioni", "Lento Avanti"]
+        base_items = ["Panca Piana", "Squat", "Stacco da terra", "Trazioni", "Lento Avanti", "Bicipiti Bilanciere"]
         custom_items = get_saved_esercizi()
         
         items = base_items + custom_items
@@ -45,8 +45,8 @@ def gestione_esercizi_view(page: ft.Page):
                 else:
                     ex_name = item.get("exercise_name", "???")
                     ex_id = item.get("id")
-                    owner = item.get("user_email")
-                    is_mine = (owner == user_email) and (ex_id is not None)
+                    owner = item.get("user_address")
+                    is_mine = (owner == user_address) and (ex_id is not None)
                 
                 card = ft.Container(
                     content=ft.Row([
@@ -61,18 +61,17 @@ def gestione_esercizi_view(page: ft.Page):
                             visible=is_mine,
                             tooltip="Elimina esercizio personale",
                             on_click=lambda e, x=ex_id: delete_click(x)
-                        ) if is_mine else ft.Icon(ft.Icons.LOCK, color="#334155", size=16, tooltip="Sistema / Non modificabile")
+                        ) if is_mine else ft.Icon(ft.Icons.LOCK, color="#334155", size=16, tooltip="Sistema")
                         
                     ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
                     bgcolor="#1e293b", padding=15, border_radius=10, 
-                    border=ft.Border(top=ft.BorderSide(1, "#334155"), bottom=ft.BorderSide(1, "#334155"), left=ft.BorderSide(1, "#334155"), right=ft.BorderSide(1, "#334155"))
+                    border=ft.border.all(1, "#334155")
                 )
                 exercises_column.controls.append(card)
         page.update()
 
-    # --- FUNZIONE OVERLAY INFALLIBILE PER LE NOTIFICHE ---
     def show_snack(msg, color):
-        snack = ft.SnackBar(ft.Text(msg), bgcolor=color)
+        snack = ft.SnackBar(ft.Text(msg, color="white", weight="bold"), bgcolor=color)
         page.overlay.append(snack)
         snack.open = True
         page.update()
@@ -84,7 +83,7 @@ def gestione_esercizi_view(page: ft.Page):
         with open(DB_FILE, "w") as f:
             json.dump(saved, f)
         
-        show_snack("Esercizio eliminato dal dispositivo!", "orange")
+        show_snack("Esercizio eliminato!", "orange")
         load_data() 
 
     txt_new_name = ft.TextField(label="Nome Esercizio", bgcolor="#1e293b", border_color="#334155", color="white")
@@ -99,7 +98,7 @@ def gestione_esercizi_view(page: ft.Page):
         new_ex = {
             "id": str(uuid.uuid4()),
             "exercise_name": txt_new_name.value,
-            "user_email": user_email
+            "user_address": user_address
         }
         
         os.makedirs("local_data", exist_ok=True)
@@ -111,7 +110,7 @@ def gestione_esercizi_view(page: ft.Page):
             
         txt_new_name.value = ""
         dlg_add.open = False
-        show_snack("Esercizio salvato in locale!", "green")
+        show_snack("Esercizio salvato!", "green")
         load_data()
 
     dlg_add = ft.AlertDialog(
@@ -123,7 +122,6 @@ def gestione_esercizi_view(page: ft.Page):
         ]
     )
 
-    # --- FUNZIONE OVERLAY INFALLIBILE PER IL POPUP ---
     def open_add_dialog(e):
         if dlg_add not in page.overlay:
             page.overlay.append(dlg_add)
@@ -146,8 +144,8 @@ def gestione_esercizi_view(page: ft.Page):
                     ft.Text("Crea Nuovo Esercizio", color="white", weight="bold")
                 ], alignment=ft.MainAxisAlignment.CENTER),
                 bgcolor=ft.Colors.CYAN_700, padding=15, border_radius=10,
-                on_click=open_add_dialog, # <-- Richiama la nuova funzione!
-                ink=True # <-- Aggiunge l'effetto visivo del click!
+                on_click=open_add_dialog,
+                ink=True
             ),
             ft.Divider(color="transparent", height=20),
             loading,

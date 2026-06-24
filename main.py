@@ -15,46 +15,30 @@ os.environ["REQUESTS_CA_BUNDLE"] = ""
 os.environ["SSL_CERT_FILE"] = ""
 
 def main(page: ft.Page):
-    page.title = "GymLog"
+    page.title = "SecureGymLog"
     page.theme_mode = ft.ThemeMode.DARK
-    page.Padding = 0
+    page.padding = 0
     
     def route_change(route):
         page.views.clear()
         
-        # --- GESTIONE ROTTE ---
         if page.route == "/":
             page.views.append(home_view(page))
-            
         elif page.route == "/welcome":
             page.views.append(onboarding_view(page))
-        
-        # Rotta Dashboard Schede 
         elif page.route == "/schede":
             page.views.append(schede_view(page))
-            
-        # Rotta Form Creazione 
         elif page.route == "/crea_scheda":
             page.views.append(create_routine_view(page))
-
-        # Rotta dettaglio scheda 
         elif page.route == "/dettaglio":
             page.views.append(dettaglio_view(page))
-        
-        # --- NUOVA ROTTA ALLENAMENTO ---
         elif page.route == "/workout":
             page.views.append(workout_view(page))
-
-        # --- START ALLENAMENTO ---
         elif page.route == "/live_workout":
             page.views.append(active_workout_view(page))
-
-        # --- GEESTIONE ESERCIZI ---
         elif page.route == "/esercizi":
             page.views.append(gestione_esercizi_view(page))
-        
-        # --- DETTAGLIO ALLENAMENTO ---
-        if page.route == "/dettaglio_allenamento":
+        elif page.route == "/dettaglio_allenamento":
             page.views.append(dettaglio_allenamento_view(page))
 
         page.update()
@@ -67,18 +51,13 @@ def main(page: ft.Page):
     page.on_route_change = route_change
     page.on_view_pop = view_pop
 
-    user_email = page.session.store.get("user_email")
+    # Verifica sessione tramite wallet address (nuovo standard)
+    user_address = page.session.store.get("user_address")
     
-    if user_email:
+    if user_address:
         page.go("/")
     else:
         page.go("/welcome")
 
 if __name__ == "__main__":
-    """ft.app(
-        target=main, 
-        view=ft.WEB_BROWSER, 
-        port=8080, 
-        host="0.0.0.0" 
-    )"""
     ft.run(main, assets_dir="assets")

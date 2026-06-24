@@ -1,19 +1,61 @@
 import flet as ft
+from services.blockchain_db import verifica_integrita_onchain
 
 def dettaglio_allenamento_view(page: ft.Page):
-    # recuoero dati dalla memoria
+    # Recupero dati dalla memoria
     workout = page.session.store.get("allenamento_selezionato")
     
-    # se mancano i dati ritorna allo storico
+    # Se mancano i dati ritorna allo storico
     if not workout:
         page.go("/workout")
         return ft.View("/dettaglio_allenamento", controls=[])
 
-    # estrazione dati
+    # Estrazione dati
     nome_scheda = workout.get('nome_scheda', 'Allenamento')
     data_log = workout.get('data', 'Senza data') 
     durata = workout.get('durata', '--')
     esercizi_svolti = workout.get('dettagli_esercizi', [])
+
+    def controlla_blockchain(e):
+        # Utilizziamo user_address come definito negli altri moduli
+        wallet = page.session.store.get("user_address")
+        if not wallet:
+            snack = ft.SnackBar(ft.Text("Errore: Nessun wallet trovato in sessione."))
+            page.overlay.append(snack)
+            snack.open = True
+            page.update()
+            return
+
+        e.control.text = "Verifica in corso..."
+        e.control.disabled = True
+        page.update()
+
+        # Verifica integrità on-chain
+        # Nota: passiamo il dizionario workout originale
+        esito, messaggio = verifica_integrita_onchain(wallet, workout)
+
+        if esito:
+            e.control.text = "Autentico (Verificato)"
+            e.control.bgcolor = ft.Colors.GREEN_600
+            e.control.icon = ft.Icons.VERIFIED_USER
+            snack = ft.SnackBar(ft.Text(messaggio))
+        else:
+            e.control.text = "Fallito: Dati Alterati"
+            e.control.bgcolor = ft.Colors.RED_600
+            e.control.icon = ft.Icons.WARNING
+            snack = ft.SnackBar(ft.Text(messaggio))
+        
+        page.overlay.append(snack)
+        snack.open = True
+        page.update()
+
+    btn_verifica = ft.ElevatedButton(
+        "Verifica Integrità Dati", 
+        icon=ft.Icons.SECURITY, 
+        bgcolor=ft.Colors.BLUE_GREY_700, 
+        color="white", 
+        on_click=controlla_blockchain
+    )
 
     header_info_card = ft.Container(
         content=ft.Column([
@@ -26,14 +68,16 @@ def dettaglio_allenamento_view(page: ft.Page):
                 ft.Icon(ft.Icons.TIMER, size=16, color="grey"),
                 ft.Text(f"Durata: {durata}", color="grey", size=12),
             ]),
+            ft.Container(height=10),
+            btn_verifica
         ], spacing=5),
         padding=20,
         bgcolor="#1e293b",
         border_radius=15,
-        border=ft.Border(left=ft.BorderSide(5, ft.Colors.CYAN_400)) # <-- CORRETTO QUI
+        # CORREZIONE 1: ft.Border al posto di ft.border.only
+        border=ft.Border(left=ft.BorderSide(5, ft.Colors.CYAN_400))
     )
 
-    # lista esercizi
     exercises_column = ft.Column(spacing=15)
 
     if not esercizi_svolti:
@@ -44,8 +88,6 @@ def dettaglio_allenamento_view(page: ft.Page):
             sets = ex.get('sets_performed', [])
 
             rows_sets = []
-            
-            # --- AGGIUNTA INTESTAZIONI COLONNE ---
             if sets:
                 rows_sets.append(
                     ft.Row([
@@ -55,7 +97,6 @@ def dettaglio_allenamento_view(page: ft.Page):
                     ], spacing=10)
                 )
 
-            # righe delle serie
             for idx, s in enumerate(sets, 1):
                 kg = s.get('kg', '-')
                 reps = s.get('reps', '-')
@@ -67,7 +108,6 @@ def dettaglio_allenamento_view(page: ft.Page):
                     ], spacing=10)
                 )
 
-            # box-card esercizio
             card = ft.Container(
                 content=ft.Column([
                     ft.Row([
@@ -80,7 +120,8 @@ def dettaglio_allenamento_view(page: ft.Page):
                 bgcolor="#1e293b",
                 padding=15,
                 border_radius=12,
-                border=ft.Border(top=ft.BorderSide(1, "#334155"), bottom=ft.BorderSide(1, "#334155"), left=ft.BorderSide(1, "#334155"), right=ft.BorderSide(1, "#334155")) # <-- CORRETTO QUI
+                # CORREZIONE 2: ft.Border.all al posto di ft.border.all
+                border=ft.Border.all(1, "#334155")
             )
             exercises_column.controls.append(card)
 
@@ -96,25 +137,19 @@ def dettaglio_allenamento_view(page: ft.Page):
                             icon=ft.Icons.ARROW_BACK_IOS, 
                             icon_color="white", 
                             icon_size=20,
-                            tooltip="Indietro",
                             on_click=lambda e: page.go("/workout")
                         ),
                         ft.Text("Dettaglio Allenamento", size=20, weight="bold", color="white")
-                    ], alignment=ft.MainAxisAlignment.START, vertical_alignment=ft.CrossAxisAlignment.CENTER),
-                    
+                    ]),
                     ft.Divider(color="transparent", height=10),
-                    
                     ft.Column([
                         header_info_card,
                         ft.Divider(color="transparent", height=20),
                         ft.Text(f"ESERCIZI SVOLTI ({len(esercizi_svolti)})", size=14, weight="bold", color="#94a3b8"),
                         ft.Container(height=10),
-                        exercises_column,
-                        ft.Container(height=20) # spazio extra in fondo
+                        exercises_column
                     ], scroll=ft.ScrollMode.AUTO, expand=True)
-                    
-                ], expand=True),
-                expand=True
+                ], expand=True)
             )
         ]
     )
